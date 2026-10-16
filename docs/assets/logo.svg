@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="Claude Switchboard">
+  <rect width="128" height="128" rx="30" fill="#D97757"/>
+  <g fill="none" stroke="#FFF8F3" stroke-width="10" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M30 47h62M76 31l16 16-16 16"/>
+    <path d="M98 81H36M52 65 36 81l16 16"/>
+  </g>
+</svg>

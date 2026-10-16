@@ -1,0 +1,45 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm test
+      - run: npm run test:python
+      - name: Check tag matches package.json
+        run: test "${GITHUB_REF_NAME}" = "v$(node -p 'require("./package.json").version')"
+      - name: Build archive
+        run: |
+          file="claude-switchboard-${GITHUB_REF_NAME}.tar.gz"
+          git archive --format=tar.gz --prefix=claude-switchboard/ -o "$file" "$GITHUB_REF_NAME"
+          shasum -a 256 "$file" > "$file.sha256"
+      - name: Sign archive
+        # The private key only lives in this secret; installs refuse archives it did not sign.
+        env:
+          RELEASE_SIGNING_KEY: ${{ secrets.RELEASE_SIGNING_KEY }}
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import crypto from "node:crypto";
+            import {RELEASE_PUBLIC_KEY} from "./src/update.mjs";
+            const key = process.env.RELEASE_SIGNING_KEY;
+            if (!key || !key.trim()) throw new Error("RELEASE_SIGNING_KEY secret is missing.");
+            const file = process.argv[1], archive = fs.readFileSync(file);
+            const signature = crypto.sign(null, archive, key);
+            if (!crypto.verify(null, archive, RELEASE_PUBLIC_KEY, signature)) throw new Error("RELEASE_SIGNING_KEY does not match RELEASE_PUBLIC_KEY in src/update.mjs.");
+            fs.writeFileSync(file + ".sig", signature.toString("base64") + "\n");
+          ' "claude-switchboard-${GITHUB_REF_NAME}.tar.gz"
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          file="claude-switchboard-${GITHUB_REF_NAME}.tar.gz"
+          gh release create "$GITHUB_REF_NAME" --generate-notes "$file" "$file.sha256" "$file.sig"
