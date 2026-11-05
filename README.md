@@ -93,7 +93,7 @@ flowchart LR
     G -- no --> X[Flagged, never retried blindly]
 ```
 
-Each account is a separate Claude config directory created by the official `claude auth login`. Conversations, settings, commands and skills are shared through symlinks, so every account sees the same history. Credentials never leave Claude's own storage.
+Each account is a separate Claude config directory created by the official `claude auth login`. Conversations, settings, commands and skills are shared through symlinks, so every account sees the same history. Before each launch, an added account also takes the answers you already gave Claude on your other accounts (welcome screens and trusted folders), so a resumed session never stops on them; your main `~/.claude.json` is never modified. Credentials never leave Claude's own storage.
 
 A session is left alone, and shown under **Left alone**, when its host cannot be controlled safely, when it is offline, or when its conversation file cannot be confirmed. Avoid typing in a session while it shows **Closing** or **Resuming**: terminals offer no atomic keyboard lock.
 
