@@ -32,8 +32,20 @@ export async function rpc(method, args = {}) {
   return reply.result;
 }
 
+// Orca sometimes cannot refresh terminal liveness for a moment. The listing changes nothing, so asking again is safe.
+async function terminals() {
+  for (let attempt = 1; ; attempt++) {
+    try {return await rpc('terminal.list', {includeVisualLayouts: false, requireFreshPtyLiveness: true});}
+    catch (error) {
+      if (!/terminal_liveness_unavailable/.test(error.message)) throw error;
+      if (attempt === 5) throw new Error(t('Orca ne confirme pas que ce terminal est actif. Session laissée intacte.'));
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+  }
+}
+
 export async function inventory({checkShells = false, records = liveSessions()} = {}) {
-  const list = await rpc('terminal.list', {includeVisualLayouts: false, requireFreshPtyLiveness: true});
+  const list = await terminals();
   if (!Array.isArray(list.terminals) || list.truncated) throw new Error(t('Inventaire Orca incomplet.'));
   const {snapshots} = await rpc('session.tabs.listAll');
   if (!Array.isArray(snapshots)) throw new Error(t('Version Orca incompatible : état des sessions absent.'));

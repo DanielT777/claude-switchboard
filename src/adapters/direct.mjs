@@ -59,7 +59,7 @@ export const shellReady = async row => (await control(row, 'status')).ready === 
 export const start = (row, _command) => control(row, 'start', {sessionId: row.provider.id, accountId: row.targetId, receiptId: row.receiptId});
 
 export function focus(row) {
-  const applications = {Apple_Terminal: 'Terminal', iTerm: 'iTerm', 'iTerm.app': 'iTerm', ghostty: 'Ghostty', WezTerm: 'WezTerm', Alacritty: 'Alacritty'};
+  const applications = {Apple_Terminal: 'Terminal', iTerm: 'iTerm', 'iTerm.app': 'iTerm', ghostty: 'Ghostty', WarpTerminal: 'Warp', WezTerm: 'WezTerm', Alacritty: 'Alacritty'};
   const app = applications[row.terminal];
   if (!app) throw new Error(t('Ouvre le terminal dans lequel cette session a été lancée.'));
   run('/usr/bin/open', ['-a', app]);

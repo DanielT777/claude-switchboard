@@ -90,7 +90,7 @@ const EN = {
   '{host} détecté ; contrôle de cette session non disponible. Voir la matrice de compatibilité.': '{host} detected; this session can’t be controlled. See the compatibility matrix.',
   'Opération refusée.': 'Operation refused.', 'Superviseur direct inaccessible : inventaire incomplet.': 'Direct supervisor unreachable: inventory incomplete.',
   'Session changée ou saisie en cours.': 'Session changed or input in progress.', 'Activité shell en cours ou non confirmée.': 'Shell activity running or unconfirmed.',
-  'Ouvre le terminal dans lequel cette session a été lancée.': 'Open the terminal where this session was started.',
+  'Orca ne confirme pas que ce terminal est actif. Session laissée intacte.': 'Orca cannot confirm this terminal is live. Session left untouched.', 'Ouvre le terminal dans lequel cette session a été lancée.': 'Open the terminal where this session was started.',
   'Herdr ne confirme pas cette opération.': 'Herdr didn’t confirm this operation.', 'Inventaire Herdr non reconnu.': 'Unrecognized Herdr inventory.',
   'Identité du panneau Herdr non confirmée (panneau, shell ou processus absent).': 'Herdr pane identity not confirmed (pane, shell or process missing).',
   'Shell Herdr introuvable.': 'Herdr shell not found.', 'Inventaire Herdr incomplet.': 'Herdr inventory incomplete.', 'Processus Herdr inconnus.': 'Unknown Herdr processes.',

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {clean, quote, setup, read, write, lock} from '../src/store.mjs';
-import {environment, newProfile, profile, renameProfile, removeProfile, syncSkills} from '../src/accounts.mjs';
+import {environment, newProfile, profile, renameProfile, removeProfile, syncSkills, syncConfig} from '../src/accounts.mjs';
 import {render, sessionStyle} from '../src/menu.mjs';
 import {setLanguage} from '../src/i18n.mjs';
 import {normalizeUsage, saveUsage, loadUsage, percentage, resetLabel, cachedLimits} from '../src/usage.mjs';
@@ -112,6 +112,19 @@ test('model and credit rows come from Claude\'s own cache, scoped to the account
   assert.match(out, /^Crédits +━━━━─+ +≈40% \|[^\n]*12\.00 USD \/ 30\.00 USD/m);
   assert.match(out.split('\n')[0], /sfcolor=#FF453A/);
   assert.match(render({accounts: [{...account, limits: extra}], now: 3600 * 1000}), /^· Fable +─{10} +— \|/m);
+});
+test('a profile inherits the welcome and folder-trust answers so a resume never stops on them', t => {
+  const root = temp(t), main = path.join(root, 'main.json'), other = path.join(root, 'other.json'), target = path.join(root, 'profile.json');
+  fs.writeFileSync(main, JSON.stringify({hasCompletedOnboarding: true, lastOnboardingVersion: '2.1.318', mcpServers: {x: {}},
+    projects: {'/trusted': {hasTrustDialogAccepted: true, allowedTools: ['Bash']}, '/untrusted': {hasTrustDialogAccepted: false}}}));
+  fs.writeFileSync(other, JSON.stringify({projects: {'/elsewhere': {hasTrustDialogAccepted: true}}}));
+  fs.writeFileSync(target, JSON.stringify({oauthAccount: {emailAddress: 'p@example.com'}, projects: {'/trusted': {lastCost: 1}}}));
+  assert.equal(syncConfig(target, [main, other]), true);
+  assert.deepEqual(read(target), {oauthAccount: {emailAddress: 'p@example.com'}, hasCompletedOnboarding: true, lastOnboardingVersion: '2.1.318',
+    projects: {'/trusted': {lastCost: 1, hasTrustDialogAccepted: true}, '/elsewhere': {hasTrustDialogAccepted: true}}});
+  assert.equal(syncConfig(target, [main, other]), false);
+  fs.writeFileSync(other, '{');
+  assert.equal(syncConfig(target, [main, other]), false);
 });
 test('menu bar shows quotas, and the account name once there is a second account', () => {
   const usage = {windows: {five_hour: {used_percentage: 25}, seven_day: {used_percentage: 65}}, at: 1000, stale: false};

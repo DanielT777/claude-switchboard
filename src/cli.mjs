@@ -6,10 +6,10 @@ import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
 import readline from 'node:readline/promises';
 import {ROOT, CLAUDE_HOME, UUID, read, write, setup, binary, run, quote, clean, alive, refresh} from './store.mjs';
-import {profiles, profile, auth, usable, environment, newProfile, renameProfile, removeProfile, syncSkills} from './accounts.mjs';
+import {profiles, profile, auth, usable, environment, newProfile, renameProfile, removeProfile, syncSkills, syncConfig} from './accounts.mjs';
 import {inventory, adapters} from './adapters/index.mjs';
 import {render} from './menu.mjs';
-import {loadUsage, cachedLimits} from './usage.mjs';
+import {loadUsage, cachedLimits, claudeConfig} from './usage.mjs';
 import {t, language} from './i18n.mjs';
 
 const SELF = fileURLToPath(import.meta.url), HERE = path.dirname(SELF);
@@ -49,6 +49,7 @@ export function resumeArguments(args) {
 export async function startClaude(id, {sessionId, receiptId, args = []} = {}) {
   const p = profile(id), account = await usable(p);
   syncSkills(p.dir);
+  if (p.dir) syncConfig(claudeConfig(p.dir), profiles().filter(o => o.id !== id).map(o => claudeConfig(o.dir)));
   if (sessionId && (!UUID.test(sessionId) || !UUID.test(receiptId || ''))) throw new Error(t('Identifiant de reprise invalide.'));
   const supplied = [...args];
   let config = {};

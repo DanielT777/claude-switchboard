@@ -6,6 +6,7 @@ import {execFile} from 'node:child_process';
 import {promisify} from 'node:util';
 import {ROOT, CLAUDE_HOME, UUID, read, write, binary, alive} from './store.mjs';
 import {t} from './i18n.mjs';
+import {claudeConfig} from './usage.mjs';
 const exec = promisify(execFile);
 
 export function environment(directory, source = process.env) {
@@ -87,6 +88,28 @@ export function syncSkills(dir, source = CLAUDE_HOME) {
       try {fs.symlinkSync(path.join(source, 'skills', entry), target);} catch (error) {if (error.code !== 'EEXIST') throw error;}
     }
   }
+}
+
+// A profile is its own Claude config. Without the answers already given on the other accounts, a resume under it
+// stops on Claude's welcome, theme and folder-trust screens, and the switch waits for a confirmation that never comes.
+// Only a profile's config is written; the main ~/.claude.json is never touched.
+const ANSWERS = ['hasCompletedOnboarding', 'lastOnboardingVersion', 'theme', 'hasSeenAutoModeEntryWarning', 'hasSeenAutoDefaultNotice', 'hasSeenAutoModeOutsideReadPrompt'];
+const FOLDER_ANSWERS = ['hasTrustDialogAccepted', 'hasClaudeMdExternalIncludesApproved', 'hasClaudeMdExternalIncludesWarningShown'];
+export function syncConfig(target, sources) {
+  let own, others;
+  try {own = read(target, {}); others = sources.map(file => read(file, {}));} catch {return false;} // Claude may be rewriting one; the next launch retries.
+  let changed = false;
+  for (const other of others) {
+    for (const key of ANSWERS) if (own[key] === undefined && other[key] !== undefined) {own[key] = other[key]; changed = true;}
+    for (const [folder, answers] of Object.entries(other.projects || {})) {
+      for (const key of FOLDER_ANSWERS) {
+        if (answers?.[key] !== true || own.projects?.[folder]?.[key] === true) continue;
+        ((own.projects ??= {})[folder] ??= {})[key] = true; changed = true;
+      }
+    }
+  }
+  if (changed) write(target, own);
+  return changed;
 }
 
 export function renameProfile(id, name, root = ROOT) {
