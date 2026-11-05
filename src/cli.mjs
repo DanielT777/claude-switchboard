@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {spawn} from 'node:child_process';
+import readline from 'node:readline/promises';
 import {ROOT, CLAUDE_HOME, UUID, read, write, setup, binary, run, quote, clean, alive, refresh} from './store.mjs';
 import {profiles, profile, auth, usable, environment, newProfile, renameProfile, removeProfile, syncSkills} from './accounts.mjs';
 import {inventory, adapters} from './adapters/index.mjs';
@@ -80,9 +81,16 @@ export async function startClaude(id, {sessionId, receiptId, args = []} = {}) {
   finally {fs.rmSync(settingsFile, {force: true});}
 }
 
+// osascript runs in the background: without `activate` its dialog shows but typing goes to the window behind it.
 function textDialog(prompt, title, initial = '') {
-  try {return run('/usr/bin/osascript', ['-e', 'on run argv\ntext returned of (display dialog (item 1 of argv) with title (item 2 of argv) default answer (item 3 of argv) buttons {item 4 of argv, item 5 of argv} default button (item 5 of argv) cancel button (item 4 of argv))\nend run', prompt, title, initial, t('Annuler'), t('Continuer')]).trim();}
+  try {return run('/usr/bin/osascript', ['-e', 'on run argv\nactivate\ntext returned of (display dialog (item 1 of argv) with title (item 2 of argv) default answer (item 3 of argv) buttons {item 4 of argv, item 5 of argv} default button (item 5 of argv) cancel button (item 4 of argv))\nend run', prompt, title, initial, t('Annuler'), t('Continuer')]).trim();}
   catch {return null;}
+}
+
+// Empty keeps the fallback; Ctrl+C or Ctrl+D cancels (null).
+async function ask(question, fallback) {
+  const rl = readline.createInterface({input: process.stdin, output: process.stdout});
+  try {return (await rl.question(question)).trim() || fallback;} catch {return null;} finally {rl.close();}
 }
 
 async function login(id) {
@@ -142,7 +150,9 @@ export async function main(argv = process.argv.slice(2)) {
   if (command === 'doctor') return doctor();
   write(path.join(ROOT, 'error.json'), {});
   if (command === 'add') {
-    const name = id || textDialog(t('Nom court du compte'), t('Ajouter un compte Claude'), t('Personnel'));
+    // The menu opens a terminal for the login anyway; a dialog shown beside it loses the keyboard to that terminal.
+    const name = id || (process.stdin.isTTY ? await ask(`${t('Nom court du compte')} [${t('Personnel')}] : `, t('Personnel'))
+      : textDialog(t('Nom court du compte'), t('Ajouter un compte Claude'), t('Personnel')));
     if (name) await login(newProfile(name));
   } else if (command === 'login') await login(id);
   else if (command === 'rename') {
@@ -153,7 +163,7 @@ export async function main(argv = process.argv.slice(2)) {
     const snapshot = await inventory();
     if (snapshot.errors.length && state.loggedIn) throw new Error(t('Vérifie les sessions ouvertes avant de retirer ce compte.'));
     if (state.loggedIn) {
-      try {run('/usr/bin/osascript', ['-e', 'on run argv\ndisplay dialog (item 1 of argv) buttons {item 2 of argv, item 3 of argv} default button (item 2 of argv) cancel button (item 2 of argv)\nend run', t('Retirer {name} du menu ? Le profil sera archivé localement.', {name: p.name}), t('Annuler'), t('Retirer')]);} catch {return;}
+      try {run('/usr/bin/osascript', ['-e', 'on run argv\nactivate\ndisplay dialog (item 1 of argv) buttons {item 2 of argv, item 3 of argv} default button (item 2 of argv) cancel button (item 2 of argv)\nend run', t('Retirer {name} du menu ? Le profil sera archivé localement.', {name: p.name}), t('Annuler'), t('Retirer')]);} catch {return;}
     }
     removeProfile(id, ROOT, snapshot.sessions);
   } else if (command === 'switch') {
