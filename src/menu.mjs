@@ -1,11 +1,12 @@
 import {clean, quote} from './store.mjs';
-import {percentage, gauge, resetIn, resetLabel} from './usage.mjs';
+import {percentage, gauge, resetIn, resetLabel, duration} from './usage.mjs';
 import {CLI} from './transfer.mjs';
 import {t} from './i18n.mjs';
 
 const USAGE_URL = 'https://claude.ai/settings/usage';
 const HOSTS = {orca: 'Orca', tmux: 'tmux', herdr: 'Herdr'};
 const TEXT = new Set(['tooltip', 'badge']);
+const SEVERITY = {warning: '#FF9F0A', critical: '#FF453A'}; // Anthropic grades its own rows.
 const STAGES = {
   waiting: ['En attente', 'hourglass', 'gray'], stopping: ['Fermeture', 'stop.circle', '#FF9F0A'],
   starting: ['Reprise', 'arrow.clockwise.circle', '#0A84FF'], done: ['Reprise confirmée', 'checkmark.circle.fill', '#30D158'],
@@ -63,7 +64,8 @@ export function render({accounts = [], sessions = [], errors = [], selected = 's
   const ready = a => a.loggedIn && a.method === 'claude.ai';
   const done = job?.rows.filter(r => r.stage === 'done').length || 0;
   const incomplete = !!job && !busy && (job.rows.some(r => r.stage !== 'done') || !!job.warnings?.length);
-  const usage = active?.usage?.windows, measured = usage ? Object.values(usage).filter(w => percentage(w, now) !== '—') : [];
+  const usage = active?.usage?.windows, extra = active?.limits;
+  const measured = [...Object.values(usage || {}), ...(extra?.rows || [])].filter(w => percentage(w, now) !== '—');
   const peak = Math.max(0, ...measured.map(w => w.used_percentage));
 
   // Menu bar: the account name only matters once there is another one to switch to.
@@ -85,12 +87,22 @@ export function render({accounts = [], sessions = [], errors = [], selected = 's
     const plan = active.plan ? ` · ${active.plan[0].toUpperCase()}${active.plan.slice(1)}` : '';
     lines.push(line(`${active.name}${plan}`, {href: USAGE_URL, sfimage: 'person.crop.circle.fill', sfcolor: '#D97757', tooltip: t('Ouvrir l’usage sur claude.ai')}));
     if (active.email) lines.push(line(active.email, {size: 12}));
+    // Same rows as Anthropic's usage page: session, week, then each model or surface week and credits, in the server's order.
+    const meter = (name, w, {color, note, approx} = {}) => {
+      const shown = percentage(w, now), left = shown !== '—' ? resetIn(w, now) : null;
+      lines.push(line(`${name.padEnd(10)}${gauge(w, now)}  ${(approx && shown !== '—' ? `≈${shown}` : shown).padStart(4)}`, {font: 'Menlo', size: 12,
+        href: USAGE_URL, color: shown !== '—' ? color : null, badge: left && `↻ ${left}`,
+        tooltip: [left && t('Réinitialisation {reset}', {reset: resetLabel(w, now)}), note].filter(Boolean).join(' · ')}));
+    };
+    const hot = w => w?.used_percentage >= 90 ? '#FF9F0A' : null;
+    if (usage) {meter(t('Session'), usage.five_hour, {color: hot(usage.five_hour)}); meter(t('Semaine'), usage.seven_day, {color: hot(usage.seven_day)});}
+    if (extra) {
+      const note = t('Relevé par /usage il y a {d}', {d: duration(Math.max(1, Math.floor((now - extra.at) / 60000)))}), approx = extra.at < now - 5 * 60000;
+      for (const row of extra.rows) meter(`· ${row.name}`, row, {color: SEVERITY[row.severity], note, approx});
+      const c = extra.credits, money = v => Number.isFinite(v) ? `${(v / 10 ** c.decimals).toFixed(c.decimals)} ${c.currency || ''}`.trim() : null;
+      if (c) meter(t('Crédits'), c, {color: hot(c), approx, note: [[money(c.used), money(c.limit)].filter(Boolean).join(' / '), note].filter(Boolean).join(' · ')});
+    }
     if (usage) {
-      for (const [key, name] of [['five_hour', '5 h'], ['seven_day', '7 jours']]) {
-        const w = usage[key], left = percentage(w, now) !== '—' ? resetIn(w, now) : null;
-        lines.push(line(`${t(name).padEnd(8)}${gauge(w, now)}  ${percentage(w, now).padStart(4)}`, {font: 'Menlo', size: 12, href: USAGE_URL,
-          color: left && w.used_percentage >= 90 ? '#FF9F0A' : null, badge: left && `↻ ${left}`, tooltip: left && t('Réinitialisation {reset}', {reset: resetLabel(w, now)})}));
-      }
       const age = Math.max(0, Math.floor((now - active.usage.at) / 60000));
       lines.push(line(`${age ? t('Mesuré il y a {n} min', {n: age}) : t('Mesuré à l’instant')}${active.usage.stale ? ` · ${t('donnée ancienne')}` : ''}`, {size: 11}));
     } else lines.push(line(t('Quotas affichés après la prochaine réponse Claude'), {size: 11}));

@@ -29,7 +29,7 @@ Switchboard puts both accounts in the menu bar. One click, and every open Claude
 
 ## Features
 
-- **Usage at a glance.** 5-hour and 7-day quotas in the menu bar, read from Claude's own status line. No scraping, no polling, no extra prompts.
+- **Usage at a glance.** Session and weekly quotas in the menu bar, read from Claude's own status line. Per-model weeks (Fable…) and usage credits come from the reply Claude caches after `/usage`, with their age shown. No scraping, no polling, no extra prompts.
 - **One-click switch.** Sessions migrate in parallel, each one only once it is idle.
 - **No surprises.** The menu lists exactly which sessions a switch will restart, and which it leaves alone and why.
 - **Never destructive.** Switchboard never kills a process, never types over a draft, and saves a private transcript checkpoint before every exit.

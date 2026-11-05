@@ -8,7 +8,7 @@ import {clean, quote, setup, read, write, lock} from '../src/store.mjs';
 import {environment, newProfile, profile, renameProfile, removeProfile, syncSkills} from '../src/accounts.mjs';
 import {render, sessionStyle} from '../src/menu.mjs';
 import {setLanguage} from '../src/i18n.mjs';
-import {normalizeUsage, saveUsage, loadUsage, percentage, resetLabel} from '../src/usage.mjs';
+import {normalizeUsage, saveUsage, loadUsage, percentage, resetLabel, cachedLimits} from '../src/usage.mjs';
 import {hookRecord} from '../src/hook.mjs';
 import {claudeAncestor, accountFromEnvironment} from '../src/tracking.mjs';
 import {passthrough} from '../src/cli.mjs';
@@ -95,6 +95,24 @@ test('usage is account-scoped, ages visibly and expires at reset', t => {
 });
 const other = {id: '11111111-1111-4111-8111-111111111111', name: 'Perso', email: 'perso@example.com', loggedIn: true, method: 'claude.ai'};
 const conversation = () => ({provider: {id: crypto.randomUUID(), key: 'session_id'}});
+test('model and credit rows come from Claude\'s own cache, scoped to the account, aged and graded by Anthropic', t => {
+  const file = path.join(temp(t), '.claude.json'), owner = {emailAddress: account.email, accountUuid: 'u1'};
+  const limits = [{kind: 'session', percent: 11, scope: null}, {kind: 'weekly_all', percent: 94, scope: null},
+    {kind: 'weekly_scoped', percent: 96, severity: 'critical', resets_at: '1970-01-01T01:00:00.5+00:00', scope: {model: {display_name: 'Fable'}}},
+    {kind: 'weekly_scoped', percent: 101, scope: {surface: {display_name: 'Bad'}}}];
+  const extra_usage = {is_enabled: true, utilization: 40, used_credits: 1200, monthly_limit: 3000, currency: 'USD', decimal_places: 2};
+  fs.writeFileSync(file, JSON.stringify({oauthAccount: owner, cachedUsageUtilization: {fetchedAtMs: 1000, accountUuid: 'u1', utilization: {limits, extra_usage}}}));
+  const extra = cachedLimits(account, file);
+  assert.deepEqual(extra.rows, [{name: 'Fable', severity: 'critical', used_percentage: 96, resets_at: 3600}]);
+  assert.equal(cachedLimits({...account, email: 'other@example.com'}, file), null);
+  fs.writeFileSync(file, '{');
+  assert.equal(cachedLimits(account, file), null);
+  const out = render({accounts: [{...account, limits: extra}], now: 1000 + 6 * 60000});
+  assert.match(out, /^· Fable +━+─* +≈96% \|[^\n]*color=#FF453A[^\n]*Relevé par \/usage il y a 6 min/m);
+  assert.match(out, /^Crédits +━━━━─+ +≈40% \|[^\n]*12\.00 USD \/ 30\.00 USD/m);
+  assert.match(out.split('\n')[0], /sfcolor=#FF453A/);
+  assert.match(render({accounts: [{...account, limits: extra}], now: 3600 * 1000}), /^· Fable +─{10} +— \|/m);
+});
 test('menu bar shows quotas, and the account name once there is a second account', () => {
   const usage = {windows: {five_hour: {used_percentage: 25}, seven_day: {used_percentage: 65}}, at: 1000, stale: false};
   assert.match(render({accounts: [{...account, usage}], now: 1000}).split('\n')[0], /^:person\.crop\.circle: 5h 25% · 7j 65% \|/);

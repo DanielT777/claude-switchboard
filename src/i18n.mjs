@@ -14,7 +14,7 @@ const EN = {
   'Relancée une fois l’état confirmé': 'Restarts once its state is confirmed', 'Prête': 'Ready', 'Relancée immédiatement': 'Restarts right away',
   'compte non confirmé': 'account unconfirmed', '7j': '7d', 'Connecter Claude': 'Connect Claude', 'Cliquer pour masquer': 'Click to dismiss',
   'Mise à jour {version} disponible': 'Update to {version}…', 'Ouvrir l’usage sur claude.ai': 'Open usage on claude.ai',
-  '5 h': '5 hours', '7 jours': '7 days', 'Réinitialisation {reset}': 'Resets {reset}', 'Mesuré il y a {n} min': 'Measured {n} min ago',
+  'Session': 'Session', 'Semaine': 'Week', 'Crédits': 'Credits', 'Relevé par /usage il y a {d}': 'From /usage {d} ago', 'Réinitialisation {reset}': 'Resets {reset}', 'Mesuré il y a {n} min': 'Measured {n} min ago',
   'Mesuré à l’instant': 'Measured just now', 'donnée ancienne': 'stale',
   'Quotas affichés après la prochaine réponse Claude': 'Usage appears after Claude’s next reply', 'Comptes': 'Accounts',
   'à vérifier': 'needs attention', 'à connecter': 'not connected', '{email} · basculer relance {n} session(s)': '{email} · switching restarts {n} session(s)',

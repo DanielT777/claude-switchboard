@@ -8,7 +8,7 @@ import {ROOT, CLAUDE_HOME, UUID, read, write, setup, binary, run, quote, clean, 
 import {profiles, profile, auth, usable, environment, newProfile, renameProfile, removeProfile, syncSkills} from './accounts.mjs';
 import {inventory, adapters} from './adapters/index.mjs';
 import {render} from './menu.mjs';
-import {loadUsage} from './usage.mjs';
+import {loadUsage, cachedLimits} from './usage.mjs';
 import {t, language} from './i18n.mjs';
 
 const SELF = fileURLToPath(import.meta.url), HERE = path.dirname(SELF);
@@ -95,7 +95,7 @@ async function login(id) {
 
 async function menu() {
   const accounts = await Promise.all(profiles().map(async p => {
-    try {const a = {...p, ...await auth(p, {cached: true})}; return {...a, usage: loadUsage(a)};}
+    try {const a = {...p, ...await auth(p, {cached: true})}; return {...a, usage: loadUsage(a), limits: cachedLimits(a)};}
     catch {return {...p, error: true};}
   }));
   const snapshot = await inventory({checkShells: true});

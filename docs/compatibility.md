@@ -36,7 +36,7 @@ There is normally no terminal selection to configure. The optional `config.json`
 | History | Shared local JSONL transcript and `--resume <UUID>` | No new conversation, fork, or inferred “continue latest” fallback |
 | Completion evidence | SessionStart, UserPromptSubmit, Stop, StopFailure, PermissionRequest, SessionEnd plus native/host status | Other blocking hooks and detached tasks can complicate idle detection |
 | Background work | Hook task/cron counts and descendant shell-process checks | Detached work and Node/Python-only monitors without task metadata cannot be exhaustively classified |
-| Usage | Documented status-line `rate_limits.five_hour` / `seven_day` | Available only when Claude emits it; stale/absent values stay explicit |
+| Usage | Documented status-line `rate_limits.five_hour` / `seven_day`; per-model weeks and credits from Claude's cached `/usage` reply (`cachedUsageUtilization.limits`, undocumented) | Available only when Claude emits it; stale/absent values stay explicit, cached rows show their age |
 | Node.js | 22+ | Zero npm runtime dependencies |
 | Python | Python 3, standard library PTY module | Required for terminal-independent direct mode |
 | SwiftBar | 2.1.1 installed locally | Installer and native application adapters target macOS; Linux is limited to core/PTY testing |
