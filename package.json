@@ -3,7 +3,7 @@
   "version": "0.3.2",
   "private": true,
   "type": "module",
-  "description": "Claude accounts, usage and graceful session resume across local terminals",
+  "description": "Switch Claude Code accounts from the macOS menu bar; open sessions follow without restarting",
   "license": "MIT",
   "repository": "github:DanielT777/claude-switchboard",
   "homepage": "https://github.com/DanielT777/claude-switchboard#readme",
@@ -14,11 +14,6 @@
   "scripts": {
     "test": "node --test test/*.test.mjs",
     "test:coverage": "node --test --experimental-test-coverage test/*.test.mjs",
-    "test:tmux": "node scripts/smoke-tmux.mjs",
-    "test:herdr": "node scripts/smoke-herdr.mjs",
-    "test:orca": "node scripts/smoke-host.mjs",
-    "test:terminal": "node scripts/smoke-host.mjs --terminal",
-    "test:python": "python3 -m unittest discover -s test -p '*_test.py'",
     "preview": "node scripts/preview.mjs",
     "install:local": "node scripts/install.mjs",
     "uninstall:local": "node scripts/install.mjs --uninstall"

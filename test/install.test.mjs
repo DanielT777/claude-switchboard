@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {install, uninstall, shellConfig, claudeSettings, uninstallSettings} from '../scripts/install.mjs';
+import {install, uninstall, withoutShellFunction, uninstallSettings} from '../scripts/install.mjs';
 import {read, write} from '../src/store.mjs';
 
 function fixture(t) {
@@ -13,31 +13,31 @@ function fixture(t) {
   return {source: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'), root: path.join(temp, 'state'),
     destination: path.join(temp, 'app'), claudeHome: path.join(temp, 'claude'), bin: path.join(temp, 'bin'), plugins: path.join(temp, 'plugins'), shells: [path.join(temp, '.zshrc')]};
 }
-test('shell integration is idempotent and preserves existing configuration', () => {
-  const result = shellConfig('export KEEP=yes\n', "'/some path/node' '/cli'" );
-  assert.equal(shellConfig(result, "'/some path/node' '/cli'"), result);
-  assert.ok(result.startsWith('export KEEP=yes'));
-  assert.match(result, /direct "\$@"/);
+test('the old claude shell function is removed and the rest of the file kept', () => {
+  const old = 'export KEEP=yes\n\n# >>> Claude Switchboard >>>\nclaude() { x direct "$@"; }\n# <<< Claude Switchboard <<<\nexport AFTER=1\n';
+  assert.equal(withoutShellFunction(old), 'export KEEP=yes\nexport AFTER=1\n');
+  assert.equal(withoutShellFunction('export KEEP=yes\n'), 'export KEEP=yes\n');
 });
-test('existing statusline and hooks survive install, upgrade and uninstall', t => {
+test('existing statusline and hooks survive install, upgrade and uninstall; old session hooks go', t => {
   const options = fixture(t), original = {statusLine: {type: 'command', command: 'cat', padding: 2}, hooks: {Stop: [{hooks: [{type: 'command', command: 'original'}]}]}, permissions: {deny: ['Bash(rm *)']}};
-  write(path.join(options.claudeHome, 'settings.json'), original);
-  fs.writeFileSync(options.shells[0], 'export KEEP=yes\n');
+  const stale = {type: 'command', command: "'/node' '/old/hook.mjs' Stop # switchboard-hook"};
+  write(path.join(options.claudeHome, 'settings.json'), {...original, hooks: {Stop: [...original.hooks.Stop, {hooks: [stale]}], SessionEnd: [{hooks: [stale]}]}});
+  fs.writeFileSync(options.shells[0], 'export KEEP=yes\n\n# >>> Claude Switchboard >>>\nclaude() { x direct "$@"; }\n# <<< Claude Switchboard <<<\n');
   const first = install(options);
   assert.ok(fs.existsSync(first.plugin));
   assert.equal(fs.statSync(first.plugin).mode & 0o777, 0o755);
   const installed = read(path.join(options.claudeHome, 'settings.json'));
   assert.deepEqual(installed.permissions, original.permissions);
-  assert.equal(installed.hooks.Stop.length, 2);
+  assert.deepEqual(installed.hooks, original.hooks);
   assert.equal(installed.statusLine.padding, 2);
+  assert.equal(fs.readFileSync(options.shells[0], 'utf8'), 'export KEEP=yes\n');
   install(options);
-  assert.equal(read(path.join(options.claudeHome, 'settings.json')).hooks.Stop.length, 2);
+  assert.deepEqual(read(path.join(options.claudeHome, 'settings.json')).hooks, original.hooks);
   assert.equal(read(path.join(options.root, 'statusline-original.json')).command, 'cat');
   uninstall(options.root);
   assert.deepEqual(read(path.join(options.claudeHome, 'settings.json')), original);
   assert.ok(!fs.existsSync(first.plugin));
   assert.match(fs.readFileSync(options.shells[0], 'utf8'), /export KEEP=yes/);
-  assert.ok(!fs.readFileSync(options.shells[0], 'utf8').includes('claude()'));
 });
 test('uninstall leaves a subsequently replaced statusline untouched', () => {
   const settings = {statusLine: {type: 'command', command: 'new-user-command'}};

@@ -13,7 +13,6 @@ jobs:
         with:
           node-version: 22
       - run: npm test
-      - run: npm run test:python
       - name: Check tag matches package.json
         run: test "${GITHUB_REF_NAME}" = "v$(node -p 'require("./package.json").version')"
       - name: Build archive

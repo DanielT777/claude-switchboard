@@ -21,6 +21,3 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
       - run: npm test
-      - run: npm run test:python
-      - run: brew list tmux || brew install tmux
-      - run: npm run test:tmux

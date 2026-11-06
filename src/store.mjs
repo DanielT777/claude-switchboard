@@ -30,28 +30,9 @@ export function write(file, value) {
 }
 
 export function setup(root = ROOT) {
-  for (const name of ['', 'profiles', 'shared', 'receipts', 'sessions', 'usage', 'auth', 'removed']) {
+  for (const name of ['', 'profiles', 'usage', 'vault', 'removed']) {
     fs.mkdirSync(path.join(root, name), {recursive: true, mode: 0o700});
   }
-}
-
-export function alive(pid) {
-  if (!Number.isInteger(pid) || pid < 2) return false;
-  try {process.kill(pid, 0); return true;}
-  catch (error) {if (error.code === 'ESRCH') return false; throw error;}
-}
-
-export function lock(root = ROOT) {
-  const file = path.join(root, 'transfer.lock');
-  if (fs.existsSync(file)) {
-    const owner = read(file, {});
-    if (alive(owner.pid)) throw new Error(t('Une bascule est déjà en cours.'));
-    fs.unlinkSync(file);
-  }
-  const id = crypto.randomUUID();
-  const fd = fs.openSync(file, 'wx', 0o600);
-  fs.writeFileSync(fd, JSON.stringify({id, pid: process.pid})); fs.closeSync(fd);
-  return () => {if (read(file, {})?.id === id) fs.unlinkSync(file);};
 }
 
 export function binary(name) {
