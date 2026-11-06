@@ -31,7 +31,9 @@ test('existing statusline and hooks survive install, upgrade and uninstall; old 
   assert.deepEqual(installed.hooks, original.hooks);
   assert.equal(installed.statusLine.padding, 2);
   assert.equal(fs.readFileSync(options.shells[0], 'utf8'), 'export KEEP=yes\n');
-  install(options);
+  const second = install(options);
+  // Sessions still on the first release forward their status line to the current one.
+  assert.ok(fs.readFileSync(path.join(first.release, 'src/statusline.mjs'), 'utf8').includes(JSON.stringify(path.join(second.release, 'src/statusline.mjs'))));
   assert.deepEqual(read(path.join(options.claudeHome, 'settings.json')).hooks, original.hooks);
   assert.equal(read(path.join(options.root, 'statusline-original.json')).command, 'cat');
   uninstall(options.root);

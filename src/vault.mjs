@@ -123,14 +123,14 @@ export function forget(id, keys = keychain) {
   fs.rmSync(metaFile(id), {force: true});
 }
 
-// Sessions started before hot switching run in a profile folder with their own login and do not follow.
+// Sessions started before hot switching run in a profile folder with their own login and do not follow. Their folder names.
 export function legacySessions(list = profiles()) {
-  let count = 0;
+  const names = [];
   for (const p of list) {
     const dir = p.dir && path.join(p.dir, 'sessions');
     for (const file of dir && fs.existsSync(dir) ? fs.readdirSync(dir) : []) {
-      try {if (/^\d+\.json$/.test(file) && process.kill(Number(file.slice(0, -5)), 0)) count++;} catch {}
+      try {if (/^\d+\.json$/.test(file) && process.kill(Number(file.slice(0, -5)), 0)) names.push(path.basename(read(path.join(dir, file), {}).cwd || '?'));} catch {}
     }
   }
-  return count;
+  return names;
 }

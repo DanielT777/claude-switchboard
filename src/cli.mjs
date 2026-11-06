@@ -86,7 +86,7 @@ export async function main(argv = process.argv.slice(2)) {
   } else if (command === 'remove') {
     const p = profile(id);
     // A session started before hot switching may still run in this profile's folder: archiving it would cut that session off.
-    if (vault.legacySessions([p])) throw new Error(t('Ce compte est encore utilisé par une session.'));
+    if (vault.legacySessions([p]).length) throw new Error(t('Ce compte est encore utilisé par une session.'));
     if (vault.saved(id)) {
       try {run('/usr/bin/osascript', ['-e', 'on run argv\nactivate\ndisplay dialog (item 1 of argv) buttons {item 2 of argv, item 3 of argv} default button (item 2 of argv) cancel button (item 2 of argv)\nend run', t('Retirer {name} du menu ? Le profil sera archivé localement.', {name: p.name}), t('Annuler'), t('Retirer')]);} catch {return;}
     }

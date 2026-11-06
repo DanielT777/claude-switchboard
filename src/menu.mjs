@@ -27,7 +27,7 @@ export function action(label, command, value, {terminal = false, depth = 0, ...p
   return line(label, {bash: process.execPath, param1: CLI, param2: command, param3: value ?? undefined, terminal, refresh: true, ...params}, depth);
 }
 
-export function render({accounts = [], selected, error, update, legacy = 0, switchedAt = 0, now = Date.now()}) {
+export function render({accounts = [], selected, error, update, legacy = [], switchedAt = 0, now = Date.now()}) {
   const active = accounts.find(a => a.id === selected), settling = !!switchedAt && now - switchedAt < SETTLING;
   const usage = active?.usage?.windows, extra = active?.limits;
   const measured = [...Object.values(usage || {}), ...(extra?.rows || [])].filter(w => percentage(w, now) !== '—');
@@ -74,7 +74,7 @@ export function render({accounts = [], selected, error, update, legacy = 0, swit
     else lines.push(action(a.name, 'login', a.id, {terminal: true, badge, tooltip: t('Connecter ce compte dans un terminal')}));
   }
   lines.push(action(t('Ajouter un compte…'), 'add', null, {terminal: true, sfimage: 'person.badge.plus'}));
-  if (legacy) lines.push(line(t('{n} session(s) lancée(s) avant la mise à jour : elles suivront après leur redémarrage', {n: legacy}), {size: 11}));
+  if (legacy.length) lines.push(line(t('{n} session(s) lancée(s) avant la mise à jour : elles suivront après leur redémarrage', {n: legacy.length}), {size: 11, tooltip: legacy.join(', ')}));
 
   lines.push('---', line(t('Plus'), {...PARENT, sfimage: 'ellipsis.circle'}));
   for (const a of accounts) lines.push(action(t('Reconnecter {name}…', {name: a.name}), 'reconnect', a.id, {depth: 1, terminal: true}));

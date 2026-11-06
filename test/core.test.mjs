@@ -82,9 +82,9 @@ test('one click switches; the active account does nothing; an unconnected one op
   assert.doesNotMatch(out, /session\(s\) lancée/);
 });
 test('right after a switch the bar shows it is settling, and older sessions are named once', () => {
-  const out = render({accounts: [account, other], selected: other.id, switchedAt: 1000, now: 20000, legacy: 3});
+  const out = render({accounts: [account, other], selected: other.id, switchedAt: 1000, now: 20000, legacy: ['main-4', 'Sievy', 'main-5']});
   assert.match(out.split('\n')[0], /^:arrow\.triangle\.2\.circlepath: Perso \|[^\n]*Les sessions ouvertes passent sur Perso/);
-  assert.match(out, /3 session\(s\) lancée\(s\) avant la mise à jour/);
+  assert.match(out, /3 session\(s\) lancée\(s\) avant la mise à jour[^\n]*tooltip='main-4, Sievy, main-5'/);
   assert.match(render({accounts: [account, other], selected: other.id, switchedAt: 1000, now: 40000}).split('\n')[0], /^:person\.crop\.circle:/);
 });
 test('every submenu parent is clickable so macOS keeps it enabled', () => {

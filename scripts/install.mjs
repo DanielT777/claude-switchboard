@@ -78,6 +78,12 @@ export function install({source = SOURCE, root = ROOT, claudeHome = CLAUDE_HOME,
     const existing = read(path.join(root, 'config.json'), {});
     save(path.join(root, 'config.json'), JSON.stringify({...existing, binaries: {...existing.binaries, ...binaries}}, null, 2) + '\n');
     save(path.join(root, 'install.json'), JSON.stringify({release, plugin, bin, shells, backup, claudeHome, installedAt: Date.now()}, null, 2) + '\n');
+    // Sessions started under an older release keep calling its status line: forward it here so quotas follow today's rules.
+    const forward = `import {spawnSync} from 'node:child_process';\nprocess.exitCode = spawnSync(process.execPath, [${JSON.stringify(path.join(release, 'src/statusline.mjs'))}], {stdio: 'inherit'}).status ?? 0;\n`;
+    for (const old of fs.readdirSync(destination)) {
+      const file = path.join(destination, old, 'src/statusline.mjs');
+      if (old !== path.basename(release) && fs.existsSync(file)) fs.writeFileSync(file, forward);
+    }
     return {release, plugin, backup};
   } catch (error) {
     for (const {file, previous, oldMode} of mutations.reverse()) {
