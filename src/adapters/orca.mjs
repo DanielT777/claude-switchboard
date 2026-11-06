@@ -135,4 +135,4 @@ export async function start(row, command) {
   const result = await rpc('terminal.send', {terminal: row.handle, expectedIncarnationId: row.incarnationId, text: command, enter: true});
   if (result.accepted === false) throw new Error(t('Reprise refusée par Orca.'));
 }
-export const focus = row => rpc('terminal.switch', {terminal: row.handle});
+export const focus = row => rpc('terminal.focus', {terminal: row.handle, navigation: 'host'});

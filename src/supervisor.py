@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import pty
+import re
 import select
 import signal
 import socket
@@ -15,6 +16,11 @@ import termios
 import time
 import tty
 import uuid
+
+
+def terminal_reply(data):
+    # shortcut: fragmented replies still block switching until the next idle hook.
+    return re.fullmatch(rb'(?:\x1b\[\d+;\d+R|\x1b\[[?>]?[\d;]*c|\x1b\[\?\d+u|\x1b\[\?\d+;[0-4]\$y|\x1b\[[IO]|\x1b\](?:10|11);rgb:[0-9a-fA-F/]+(?:\x07|\x1b\\))+', data) is not None
 
 
 def stop_allowed(record, session_id, last_input_ms):
@@ -153,7 +159,8 @@ def main():
                 data = os.read(0, 65536)
                 if not data or (child is None and b'\x04' in data):
                     break
-                last_input = time.time() * 1000
+                if not terminal_reply(data):
+                    last_input = time.time() * 1000
                 if master is not None and not switching:
                     write_all(master, data)
             if master is not None and master in ready:

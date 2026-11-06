@@ -23,7 +23,8 @@ export async function inventory({records = liveSessions()} = {}) {
     const meta = read(path.join(directory, filename), null);
     if (!meta || meta.id !== filename.slice(0, -5)) continue;
     const record = read(path.join(directory, `${meta.id}.session.json`), null);
-    if (!record || !trackedSession(record.sessionId)) continue;
+    const tracked = record && trackedSession(record.sessionId);
+    if (!tracked || tracked.pid !== record.pid || tracked.processStamp !== record.processStamp) continue;
     const row = {adapter: 'direct', handle: `direct:${meta.id}`, supervisorId: meta.id, socket: meta.socket,
       incarnationId: `${meta.id}:${meta.pid}`, supervisorPid: meta.pid, connected: true,
       worktreePath: record.cwd || meta.cwd, name: path.basename(record.cwd || meta.cwd), terminal: meta.terminal,
@@ -58,7 +59,13 @@ export async function stopClaude(row) {
 export const shellReady = async row => (await control(row, 'status')).ready === true;
 export const start = (row, _command) => control(row, 'start', {sessionId: row.provider.id, accountId: row.targetId, receiptId: row.receiptId});
 
-export function focus(row) {
+export async function focus(row) {
+  if (row.terminal === 'Orca') {
+    const orca = await import('./orca.mjs');
+    const matches = (await orca.inventory()).filter(r => row.provider?.id && r.provider?.id === row.provider.id);
+    if (matches.length !== 1) throw new Error(t('Ouvre le terminal dans lequel cette session a été lancée.'));
+    return orca.focus(matches[0]);
+  }
   const applications = {Apple_Terminal: 'Terminal', iTerm: 'iTerm', 'iTerm.app': 'iTerm', ghostty: 'Ghostty', WarpTerminal: 'Warp', WezTerm: 'WezTerm', Alacritty: 'Alacritty'};
   const app = applications[row.terminal];
   if (!app) throw new Error(t('Ouvre le terminal dans lequel cette session a été lancée.'));

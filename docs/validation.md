@@ -1,5 +1,15 @@
 # Validation record
 
+## Account-switch repair, 2026-11-06
+
+- 83 Node tests and 3 Python tests pass. Regressions cover stale supervisor records after a conversation resumes, refusal of unreachable live supervisors, the `terminal.focus` RPC behind Orca's public switch command, and focus of supervised Orca conversations.
+- Direct-supervisor and tmux fixture E2E pass with fake accounts and preserved conversations.
+- An isolated Orca terminal confirmed cursor, device, color, keyboard-protocol and synchronized-output replies. The supervisor excludes these complete replies from user-draft timestamps; incomplete replies still fail closed.
+- Local installation and `doctor` pass. Live focus navigates to the correct Orca tab. Four idle conversations were gracefully resumed on the selected account with matching session IDs and fresh account hooks; no provider prompts were sent. Two sessions with shell work were left running.
+- Supervisors already in memory retain their previous input classifier until relaunched. A later idle hook can clear their stale input timestamp. No second restart of the migrated sessions was performed.
+
+## Earlier validation
+
 Local validation on macOS arm64, 2026-10-16. Tests use temporary state directories and explicit host handles. Existing user conversations are not transferred by the test suite.
 
 | Check | Result | What it proves |
