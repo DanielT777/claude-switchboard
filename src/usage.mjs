@@ -20,11 +20,20 @@ export function saveUsage(id, data, email, root = ROOT, now = Date.now()) {
   if (!profileId(id)) return;
   const windows = normalizeUsage(data);
   if (!windows) return;
-  write(path.join(root, 'usage', `${id}.json`), {windows, email, at: now});
+  write(path.join(root, 'quota', `${id}.json`), {windows, email, at: now});
+}
+
+// Anthropic's usage endpoint, the one Claude's /usage reads. Read-only: it spends no quota.
+export async function fetchUsage(token, fetchImpl = fetch) {
+  const reply = await fetchImpl('https://api.anthropic.com/api/oauth/usage', {headers: {Authorization: `Bearer ${token}`, 'anthropic-beta': 'oauth-2025-04-20'}, signal: AbortSignal.timeout(5000)});
+  if (!reply.ok) return null;
+  // A window with no use yet comes back as null: that is 0 %.
+  const body = await reply.json(), window = w => w === null ? {used_percentage: 0} : w && {used_percentage: w.utilization, resets_at: Math.floor(Date.parse(w.resets_at) / 1000)};
+  return normalizeUsage({five_hour: window(body.five_hour), seven_day: window(body.seven_day)});
 }
 
 export function loadUsage(account, root = ROOT, now = Date.now()) {
-  const snapshot = read(path.join(root, 'usage', `${account.id}.json`), null);
+  const snapshot = read(path.join(root, 'quota', `${account.id}.json`), null);
   if (!snapshot || !account.email || snapshot.email !== account.email) return null;
   const windows = normalizeUsage(snapshot.windows);
   if (!windows || !Number.isFinite(snapshot.at)) return null;

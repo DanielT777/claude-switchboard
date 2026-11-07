@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {execFileSync} from 'node:child_process';
 import {install, uninstall, withoutShellFunction, uninstallSettings} from '../scripts/install.mjs';
 import {read, write} from '../src/store.mjs';
 
@@ -18,24 +19,24 @@ test('the old claude shell function is removed and the rest of the file kept', (
   assert.equal(withoutShellFunction(old), 'export KEEP=yes\nexport AFTER=1\n');
   assert.equal(withoutShellFunction('export KEEP=yes\n'), 'export KEEP=yes\n');
 });
-test('existing statusline and hooks survive install, upgrade and uninstall; old session hooks go', t => {
+test('upgrading from 0.3 restores the original status line and hooks and removes the shell function', t => {
   const options = fixture(t), original = {statusLine: {type: 'command', command: 'cat', padding: 2}, hooks: {Stop: [{hooks: [{type: 'command', command: 'original'}]}]}, permissions: {deny: ['Bash(rm *)']}};
   const stale = {type: 'command', command: "'/node' '/old/hook.mjs' Stop # switchboard-hook"};
-  write(path.join(options.claudeHome, 'settings.json'), {...original, hooks: {Stop: [...original.hooks.Stop, {hooks: [stale]}], SessionEnd: [{hooks: [stale]}]}});
+  write(path.join(options.root, 'statusline-original.json'), original.statusLine);
+  write(path.join(options.claudeHome, 'settings.json'), {...original, statusLine: {type: 'command', command: "'/node' '/old/statusline.mjs' # switchboard-statusline"},
+    hooks: {Stop: [...original.hooks.Stop, {hooks: [stale]}], SessionEnd: [{hooks: [stale]}]}});
   fs.writeFileSync(options.shells[0], 'export KEEP=yes\n\n# >>> Claude Switchboard >>>\nclaude() { x direct "$@"; }\n# <<< Claude Switchboard <<<\n');
+  // A release from before hot switching, still used by a running session.
+  const old = path.join(options.destination, 'app-0-old/src');
+  fs.mkdirSync(old, {recursive: true}); fs.writeFileSync(path.join(old, 'statusline.mjs'), 'throw new Error("old capture")');
   const first = install(options);
-  assert.ok(fs.existsSync(first.plugin));
   assert.equal(fs.statSync(first.plugin).mode & 0o777, 0o755);
-  const installed = read(path.join(options.claudeHome, 'settings.json'));
-  assert.deepEqual(installed.permissions, original.permissions);
-  assert.deepEqual(installed.hooks, original.hooks);
-  assert.equal(installed.statusLine.padding, 2);
+  assert.deepEqual(read(path.join(options.claudeHome, 'settings.json')), original);
   assert.equal(fs.readFileSync(options.shells[0], 'utf8'), 'export KEEP=yes\n');
-  const second = install(options);
-  // Sessions still on the first release forward their status line to the current one.
-  assert.ok(fs.readFileSync(path.join(first.release, 'src/statusline.mjs'), 'utf8').includes(JSON.stringify(path.join(second.release, 'src/statusline.mjs'))));
-  assert.deepEqual(read(path.join(options.claudeHome, 'settings.json')).hooks, original.hooks);
-  assert.equal(read(path.join(options.root, 'statusline-original.json')).command, 'cat');
+  // That old session's status line now only runs the original one.
+  assert.equal(execFileSync(process.execPath, [path.join(old, 'statusline.mjs')], {input: 'payload', encoding: 'utf8'}), 'payload');
+  install(options);
+  assert.deepEqual(read(path.join(options.claudeHome, 'settings.json')), original);
   uninstall(options.root);
   assert.deepEqual(read(path.join(options.claudeHome, 'settings.json')), original);
   assert.ok(!fs.existsSync(first.plugin));

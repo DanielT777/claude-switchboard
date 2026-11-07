@@ -6,7 +6,7 @@ import path from 'node:path';
 import {clean, quote, setup, read, write} from '../src/store.mjs';
 import {environment, newProfile, profile, renameProfile, removeProfile} from '../src/accounts.mjs';
 import {render} from '../src/menu.mjs';
-import {normalizeUsage, saveUsage, loadUsage, percentage, resetLabel, cachedLimits} from '../src/usage.mjs';
+import {normalizeUsage, saveUsage, loadUsage, percentage, resetLabel, cachedLimits, fetchUsage} from '../src/usage.mjs';
 
 process.env.SWITCHBOARD_LANG = 'fr'; // Assertions below use the French source strings.
 
@@ -53,6 +53,15 @@ test('usage is validated, account-scoped, ages visibly and expires at reset', t 
   assert.equal(loadUsage({...account, email: 'other@example.com'}, root, now), null);
   assert.equal(percentage(loadUsage(account, root, now).windows.five_hour, 2000001), '—');
   assert.match(resetLabel({resets_at: 0}, now), /inconnue/);
+});
+test('fresh quotas come from Anthropic\'s usage endpoint, and a refused token gives nothing', async () => {
+  let asked;
+  const reply = (ok, body) => async (url, options) => {asked = {url, auth: options.headers.Authorization}; return {ok, json: async () => body};};
+  const body = {five_hour: {utilization: 3, resets_at: '2026-11-07T10:10:00.43+00:00'}, seven_day: {utilization: 65, resets_at: '2026-11-12T07:00:00+00:00'}, seven_day_opus: null};
+  assert.deepEqual(await fetchUsage('token', reply(true, body)), {five_hour: {used_percentage: 3, resets_at: 1794046200}, seven_day: {used_percentage: 65, resets_at: 1794466800}});
+  assert.deepEqual(asked, {url: 'https://api.anthropic.com/api/oauth/usage', auth: 'Bearer token'});
+  assert.equal(await fetchUsage('expired', reply(false, {type: 'error'})), null);
+  assert.deepEqual(await fetchUsage('token', reply(true, {five_hour: null, seven_day: body.seven_day})), {five_hour: {used_percentage: 0}, seven_day: {used_percentage: 65, resets_at: 1794466800}});
 });
 test('model and credit rows come from Claude\'s own cache, scoped to the account, aged and graded by Anthropic', t => {
   const file = path.join(temp(t), '.claude.json'), owner = {emailAddress: account.email, accountUuid: 'u1'};

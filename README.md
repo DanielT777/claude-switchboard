@@ -43,9 +43,9 @@ A request already in flight finishes on the previous account. The menu bar shows
 
 ## Features
 
-- **Usage at a glance.** Session and weekly quotas in the menu bar, read from Claude's own status line. Per-model weeks and usage credits come from the reply Claude caches after `/usage`, with their age shown. No scraping, no polling, no extra prompts.
-- **Instant menu.** It reads a few small files: no process scan, no `claude auth status`.
-- **Your terminal, unchanged.** Keep typing `claude`, anywhere. Existing status lines keep working.
+- **Usage at a glance.** Session and weekly quotas in the menu bar, refreshed every minute in the background from Anthropic's usage endpoint (the one `/usage` reads; it spends no quota). Per-model weeks and usage credits come from the reply Claude caches after `/usage`, with their age shown. No scraping, no extra prompts.
+- **Instant menu.** It reads a few small files: no process scan, no `claude auth status`, no network wait.
+- **Your terminal, unchanged.** Keep typing `claude`, anywhere. Switchboard leaves your status line alone.
 - **Signed auto-updates.** New versions arrive from GitHub releases and install only if signed by the maintainer's ed25519 key.
 - **Speaks your language.** English or French, following your macOS language.
 
@@ -65,7 +65,7 @@ Add your second account from the menu with **Add Account…**, which runs Claude
 
 ### Upgrading from 0.3
 
-Version 0.3 ran each account in its own Claude folder and restarted sessions to switch. The installer removes its `claude` shell function and session hooks. Sessions started before the upgrade keep the account they started with until you restart them once; the menu counts them. Accounts other than your main one need **Connect** once, since their logins now live in Switchboard's keychain items.
+Version 0.3 ran each account in its own Claude folder and restarted sessions to switch. The installer removes its `claude` shell function, session hooks and status line wrapper, and puts your original status line back. Sessions started before the upgrade keep the account they started with until you restart them once; the menu counts them. Accounts other than your main one need **Connect** once, since their logins now live in Switchboard's keychain items.
 
 ## Update and uninstall
 
@@ -75,11 +75,11 @@ The menu shows **Update to vX.Y.Z…** when a new release is out; one click down
 npm run uninstall:local
 ```
 
-Uninstall removes the menu and the status line hook. Saved logins stay in the keychain (items named **Claude Switchboard**) and state stays in `~/.config/claude-switchboard`, so a reinstall finds them.
+Uninstall removes the menu. Saved logins stay in the keychain (items named **Claude Switchboard**) and state stays in `~/.config/claude-switchboard`, so a reinstall finds them.
 
 ## Privacy
 
-Everything stays on your Mac. Logins stay in the macOS keychain; Switchboard reads and writes them with Apple's `security` tool, as Claude Code itself does. State lives in `~/.config/claude-switchboard` with `0700`/`0600` permissions; conversations stay in `~/.claude/projects`. The only network request Switchboard makes on its own is the GitHub release check, at most every six hours.
+Everything stays on your Mac. Logins stay in the macOS keychain; Switchboard reads and writes them with Apple's `security` tool, as Claude Code itself does. State lives in `~/.config/claude-switchboard` with `0700`/`0600` permissions; conversations stay in `~/.claude/projects`. Switchboard makes two kinds of network requests on its own: one read-only usage request per account and minute to api.anthropic.com, with that account's own token (an inactive account only while its saved token is still valid), and the GitHub release check, at most every six hours.
 
 Each account remains subject to [Anthropic's terms](https://www.anthropic.com/legal/consumer-terms). Switchboard switches between subscriptions you own; it does not pool or bypass usage limits.
 

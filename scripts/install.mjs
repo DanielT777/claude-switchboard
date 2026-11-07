@@ -22,13 +22,7 @@ const withoutHooks = hooks => {
   return Object.keys(result).length ? result : undefined;
 };
 
-export function claudeSettings(settings, directory, node = process.execPath) {
-  const command = [node, path.join(directory, 'statusline.mjs')].map(quote).join(' ') + ' # switchboard-statusline';
-  const result = {...settings, statusLine: {...settings.statusLine, type: 'command', command}, hooks: withoutHooks(settings.hooks)};
-  if (!result.hooks) delete result.hooks;
-  return result;
-}
-
+// Quotas now come from the usage poll: older versions' status line wrapper and session hooks go, the original status line comes back.
 export function uninstallSettings(settings, originalStatus) {
   const result = {...settings, hooks: withoutHooks(settings.hooks)};
   if (!result.hooks) delete result.hooks;
@@ -66,10 +60,8 @@ export function install({source = SOURCE, root = ROOT, claudeHome = CLAUDE_HOME,
   };
   try {
     const settingsFile = path.join(claudeHome, 'settings.json');
-    const previous = read(settingsFile, {});
-    if (!previous.statusLine?.command?.includes('# switchboard-statusline')) save(path.join(root, 'statusline-original.json'), JSON.stringify(previous.statusLine || null) + '\n');
-    const settings = claudeSettings(previous, path.join(release, 'src'), node);
-    save(settingsFile, JSON.stringify(settings, null, 2) + '\n');
+    const original = read(path.join(root, 'statusline-original.json'), null);
+    save(settingsFile, JSON.stringify(uninstallSettings(read(settingsFile, {}), original), null, 2) + '\n');
     const wrapper = `#!/bin/sh\nexec ${command} "$@"\n`;
     save(path.join(bin, 'claude-switchboard'), wrapper, 0o755);
     const plugin = path.join(plugins, 'claude-switchboard.15s.sh');
@@ -78,8 +70,8 @@ export function install({source = SOURCE, root = ROOT, claudeHome = CLAUDE_HOME,
     const existing = read(path.join(root, 'config.json'), {});
     save(path.join(root, 'config.json'), JSON.stringify({...existing, binaries: {...existing.binaries, ...binaries}}, null, 2) + '\n');
     save(path.join(root, 'install.json'), JSON.stringify({release, plugin, bin, shells, backup, claudeHome, installedAt: Date.now()}, null, 2) + '\n');
-    // Sessions started under an older release keep calling its status line: forward it here so quotas follow today's rules.
-    const forward = `import {spawnSync} from 'node:child_process';\nprocess.exitCode = spawnSync(process.execPath, [${JSON.stringify(path.join(release, 'src/statusline.mjs'))}], {stdio: 'inherit'}).status ?? 0;\n`;
+    // Sessions started under an older release keep calling its status line: it now only runs the original one.
+    const forward = `import {spawnSync} from 'node:child_process';\nconst original = ${JSON.stringify(original?.command || '')};\nif (original) process.exitCode = spawnSync('/bin/sh', ['-c', original], {stdio: 'inherit'}).status ?? 0;\n`;
     for (const old of fs.readdirSync(destination)) {
       const file = path.join(destination, old, 'src/statusline.mjs');
       if (old !== path.basename(release) && fs.existsSync(file)) fs.writeFileSync(file, forward);

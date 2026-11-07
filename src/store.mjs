@@ -30,7 +30,7 @@ export function write(file, value) {
 }
 
 export function setup(root = ROOT) {
-  for (const name of ['', 'profiles', 'usage', 'vault', 'removed']) {
+  for (const name of ['', 'profiles', 'quota', 'vault', 'removed']) {
     fs.mkdirSync(path.join(root, name), {recursive: true, mode: 0o700});
   }
 }

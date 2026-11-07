@@ -7,7 +7,7 @@ import readline from 'node:readline/promises';
 import {ROOT, read, write, setup, binary, run, clean, refresh} from './store.mjs';
 import {profiles, profile, environment, newProfile, renameProfile, removeProfile} from './accounts.mjs';
 import {render} from './menu.mjs';
-import {loadUsage, cachedLimits, claudeConfig} from './usage.mjs';
+import {loadUsage, saveUsage, fetchUsage, cachedLimits, claudeConfig} from './usage.mjs';
 import * as vault from './vault.mjs';
 import {t} from './i18n.mjs';
 
@@ -55,6 +55,25 @@ async function menu() {
   try {update = await (await import('./update.mjs')).check();} catch {}
   console.log(render({accounts, update, selected: live?.id, legacy: vault.legacySessions(), switchedAt: read(path.join(ROOT, 'selection.json'), {}).at,
     error: failure.at > Date.now() - 10 * 60 * 1000 ? failure.message : null}));
+  // Quotas refresh in the background, so opening the menu never waits on the network.
+  if (due().length) spawn(process.execPath, [SELF, 'poll'], {detached: true, stdio: 'ignore'}).unref();
+}
+
+// Only this poll writes quota/: older versions and other tools wrote usage/ for whichever login was live, and old idle sessions replay stale limits.
+const POLLED = path.join(ROOT, 'quota', 'polled.json'), EVERY = 60000;
+const due = (now = Date.now(), last = read(POLLED, {})) => profiles().filter(p => !(now - (last[p.id] || 0) < EVERY));
+
+// One read-only request per account and minute. An inactive account is asked only while its saved token is still valid.
+async function poll() {
+  const live = vault.current(), now = Date.now(), list = due(now);
+  write(POLLED, {...read(POLLED, {}), ...Object.fromEntries(list.map(p => [p.id, now]))});
+  await Promise.all(list.map(async p => {
+    const active = p.id === live?.id, email = active ? live.email : vault.saved(p.id)?.email;
+    const oauth = email && (active ? vault.keychain.read(vault.slot()) : vault.keychain.read(vault.VAULT, p.id))?.claudeAiOauth;
+    if (!oauth?.accessToken || !(oauth.expiresAt > now + EVERY)) return;
+    const windows = await fetchUsage(oauth.accessToken).catch(() => null);
+    if (windows) saveUsage(p.id, windows, email);
+  }));
 }
 
 function doctor() {
@@ -69,6 +88,7 @@ export async function main(argv = process.argv.slice(2)) {
   setup();
   const [command = 'menu', id, ...args] = argv;
   if (command === 'menu') return menu();
+  if (command === 'poll') return poll().catch(() => {}); // A missed refresh is retried next minute.
   // ponytail: shells opened before the update still define claude() as `… direct`; pass straight through.
   if (command === 'direct' || command === 'claude') return childExit(spawn(binary('claude') || 'claude', argv.slice(1), {stdio: 'inherit'}));
   if (command === 'doctor') return doctor();
